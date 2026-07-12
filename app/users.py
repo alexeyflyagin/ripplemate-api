@@ -6,10 +6,11 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models import Settings, Account, Workspace
+
 from app.core.config import settings
 from app.db.session import get_session
 from app.models import Settings, Account
+from app.models import Workspace
 from app.models.user import User
 
 
@@ -30,21 +31,26 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
         session = self.user_db.session
 
-        new_settings = Settings()
-        session.add(new_settings)
-        await session.flush()
+        try:
+            new_settings = Settings()
+            session.add(new_settings)
+            await session.flush()
 
-        account = Account(
-            user_id=user.id,
-            settings_id=new_settings.id,
-            display_name=user_create.display_name,
-        )
-        session.add(account)
-        await session.flush()
+            account = Account(
+                user_id=user.id,
+                settings_id=new_settings.id,
+                display_name=user_create.display_name,
+            )
+            session.add(account)
+            await session.flush()
 
-        workspace = Workspace(owner_id=account.id, name="My workspace")
-        session.add(workspace)
-        await session.commit()
+            workspace = Workspace(owner_id=account.id, name="My workspace")
+            session.add(workspace)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            await self.user_db.delete(user)
+            raise
 
         return user
 

@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy import select
 
 from app.models import Workspace
@@ -220,3 +221,31 @@ async def test_register_treats_email_case_insensitively(client):
     )
 
     assert response.status_code == 400
+
+
+async def test_register_deletes_orphaned_user_if_account_creation_fails(
+    client, db_session, monkeypatch
+):
+    import app.users as users_module
+    from app.models.user import User
+
+    class ExplodingWorkspace:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("Simulated failure")
+
+    monkeypatch.setattr(users_module, "Workspace", ExplodingWorkspace)
+
+    with pytest.raises(RuntimeError, match="Simulated failure"):
+        await client.post(
+            "/auth/register",
+            json={
+                "email": "shouldnotexist@example.com",
+                "password": "password123",
+                "display_name": "Ghost User",
+            },
+        )
+
+    result = await db_session.execute(
+        select(User).where(User.email == "shouldnotexist@example.com")
+    )
+    assert result.scalar_one_or_none() is None
