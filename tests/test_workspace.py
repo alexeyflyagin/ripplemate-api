@@ -1,3 +1,6 @@
+from app.schemas.workspace import WorkspaceRead
+
+
 async def test_create_workspace_requires_auth(client):
     response = await client.post("/workspaces", json={"name": "Test"})
     assert response.status_code == 401
@@ -160,11 +163,12 @@ async def test_list_workspaces_requires_auth(client):
     assert response.status_code == 401
 
 
-async def test_list_workspaces_empty(authenticated_client):
+async def test_list_workspaces_includes_default_workspace(authenticated_client):
     response = await authenticated_client.get("/workspaces")
 
     assert response.status_code == 200
-    assert response.json() == []
+    names = {workspace["name"] for workspace in response.json()}
+    assert names == {"My workspace"}
 
 
 async def test_list_workspaces_returns_owned(authenticated_client):
@@ -175,7 +179,7 @@ async def test_list_workspaces_returns_owned(authenticated_client):
 
     assert response.status_code == 200
     names = {workspace["name"] for workspace in response.json()}
-    assert names == {"First", "Second"}
+    assert names == {"My workspace", "First", "Second"}
 
 
 async def test_list_workspaces_excludes_other_users_workspaces(client, workspace_id):
@@ -191,7 +195,8 @@ async def test_list_workspaces_excludes_other_users_workspaces(client, workspace
     response = await client.get("/workspaces")
 
     assert response.status_code == 200
-    assert response.json() == []
+    names = {workspace["name"] for workspace in response.json()}
+    assert names == {"My workspace"}
 
 
 async def test_get_workspace_requires_auth(authenticated_client, workspace_id):

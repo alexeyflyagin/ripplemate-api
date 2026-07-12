@@ -6,7 +6,7 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.models import Settings, Account, Workspace
 from app.core.config import settings
 from app.db.session import get_session
 from app.models import Settings, Account
@@ -40,6 +40,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             display_name=user_create.display_name,
         )
         session.add(account)
+        await session.flush()
+
+        workspace = Workspace(owner_id=account.id, name="My workspace")
+        session.add(workspace)
         await session.commit()
 
         return user

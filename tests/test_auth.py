@@ -1,11 +1,12 @@
 from sqlalchemy import select
 
+from app.models import Workspace
 from app.models.account import Account
 from app.models.settings import Settings
 from app.models.user import User
 
 
-async def test_register_creates_user_account_and_settings(client, db_session):
+async def test_register_creates_user_account_settings_and_workspace(client, db_session):
     response = await client.post(
         "/auth/register",
         json={
@@ -34,6 +35,12 @@ async def test_register_creates_user_account_and_settings(client, db_session):
     assert settings_row.font == "sans-serif"
     assert settings_row.language == "auto"
     assert settings_row.theme == "auto"
+
+    result = await db_session.execute(
+        select(Workspace).where(Workspace.owner_id == account.id)
+    )
+    workspace = result.scalar_one()
+    assert workspace.name == "My workspace"
 
 
 async def test_register_rejects_short_password(client):
