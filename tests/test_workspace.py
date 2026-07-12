@@ -1,6 +1,3 @@
-from app.schemas.workspace import WorkspaceRead
-
-
 async def test_create_workspace_requires_auth(client):
     response = await client.post("/workspaces", json={"name": "Test"})
     assert response.status_code == 401
