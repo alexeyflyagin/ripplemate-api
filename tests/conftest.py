@@ -65,3 +65,11 @@ async def authenticated_client(client):
 async def workspace_id(authenticated_client):
     response = await authenticated_client.post("/workspaces", json={"name": "My Workspace"})
     return response.json()["id"]
+
+
+@pytest_asyncio.fixture
+async def category_id(authenticated_client, workspace_id):
+    response = await authenticated_client.post(
+        f"/workspaces/{workspace_id}/categories", json={"name": "My Category"}
+    )
+    return response.json()["id"]
