@@ -4,6 +4,7 @@ from fastapi import Depends
 from fastapi_users import BaseUserManager, FastAPIUsers, InvalidPasswordException, UUIDIDMixin
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -64,3 +65,11 @@ auth_backend = AuthenticationBackend(
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 
 current_active_user = fastapi_users.current_user(active=True)
+
+
+async def get_current_account(
+        user: User = Depends(current_active_user),
+        session: AsyncSession = Depends(get_session),
+) -> Account:
+    result = await session.execute(select(Account).where(Account.user_id == user.id))
+    return result.scalar_one()
