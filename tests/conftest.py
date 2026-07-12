@@ -35,8 +35,27 @@ async def client(db_session):
     fastapi_app.dependency_overrides[get_session] = override_get_session
 
     async with AsyncClient(
-        transport=ASGITransport(app=fastapi_app), base_url="http://test"
+            transport=ASGITransport(app=fastapi_app), base_url="http://test"
     ) as ac:
         yield ac
 
     fastapi_app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def authenticated_client(client):
+    await client.post(
+        "/auth/register",
+        json={
+            "email": "settingsuser@example.com",
+            "password": "password123",
+            "display_name": "Settings User",
+        },
+    )
+    response = await client.post(
+        "/auth/jwt/login",
+        data={"username": "settingsuser@example.com", "password": "password123"},
+    )
+    token = response.json()["access_token"]
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client
