@@ -153,3 +153,76 @@ async def test_cannot_delete_other_users_workspace(client, workspace_id):
 
     response = await client.delete(f"/workspaces/{workspace_id}")
     assert response.status_code == 404
+
+
+async def test_list_workspaces_requires_auth(client):
+    response = await client.get("/workspaces")
+    assert response.status_code == 401
+
+
+async def test_list_workspaces_empty(authenticated_client):
+    response = await authenticated_client.get("/workspaces")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_list_workspaces_returns_owned(authenticated_client):
+    await authenticated_client.post("/workspaces", json={"name": "First"})
+    await authenticated_client.post("/workspaces", json={"name": "Second"})
+
+    response = await authenticated_client.get("/workspaces")
+
+    assert response.status_code == 200
+    names = {workspace["name"] for workspace in response.json()}
+    assert names == {"First", "Second"}
+
+
+async def test_list_workspaces_excludes_other_users_workspaces(client, workspace_id):
+    await client.post(
+        "/auth/register",
+        json={"email": "listviewer@example.com", "password": "password123", "display_name": "Viewer"},
+    )
+    login = await client.post(
+        "/auth/jwt/login", data={"username": "listviewer@example.com", "password": "password123"}
+    )
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+    response = await client.get("/workspaces")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_get_workspace_requires_auth(authenticated_client, workspace_id):
+    del authenticated_client.headers["Authorization"]
+    response = await authenticated_client.get(f"/workspaces/{workspace_id}")
+    assert response.status_code == 401
+
+
+async def test_get_workspace(authenticated_client, workspace_id):
+    response = await authenticated_client.get(f"/workspaces/{workspace_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == workspace_id
+    assert data["name"] == "My Workspace"
+
+
+async def test_get_workspace_not_found(authenticated_client):
+    response = await authenticated_client.get("/workspaces/999999")
+    assert response.status_code == 404
+
+
+async def test_cannot_get_other_users_workspace(client, workspace_id):
+    await client.post(
+        "/auth/register",
+        json={"email": "viewer2@example.com", "password": "password123", "display_name": "Viewer Two"},
+    )
+    login = await client.post(
+        "/auth/jwt/login", data={"username": "viewer2@example.com", "password": "password123"}
+    )
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+    response = await client.get(f"/workspaces/{workspace_id}")
+    assert response.status_code == 404

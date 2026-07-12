@@ -38,6 +38,12 @@ class WorkspaceRepository:
         await self.session.refresh(workspace)
         return workspace
 
+    async def list_owned(self, owner_id: int) -> list[Workspace]:
+        result = await self.session.execute(
+            select(Workspace).where(Workspace.owner_id == owner_id).order_by(Workspace.created_at)
+        )
+        return list(result.scalars().all())
+
     async def delete(self, workspace: Workspace) -> None:
         await self.session.delete(workspace)
         await self.session.commit()
