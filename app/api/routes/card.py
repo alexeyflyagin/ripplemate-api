@@ -31,14 +31,15 @@ async def create_card(
 
 @router.get("", response_model=CardListResponse)
 async def list_cards(
-        workspace_id: int,
-        category_id: int | None = Query(default=None),
-        limit: int = Query(default=100, ge=1, le=300),
-        offset: int = Query(default=0, ge=0),
-        account: Account = Depends(get_current_account),
-        service: CardService = Depends(get_card_service),
+    workspace_id: int,
+    category_id: int | None = Query(default=None),
+    search: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=300),
+    offset: int = Query(default=0, ge=0),
+    account: Account = Depends(get_current_account),
+    service: CardService = Depends(get_card_service),
 ):
-    return await service.list_in_workspace(account, workspace_id, category_id, limit, offset)
+    return await service.list_in_workspace(account, workspace_id, category_id, search, limit, offset)
 
 
 @router.get("/random", response_model=CardRead)

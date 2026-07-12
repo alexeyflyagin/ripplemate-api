@@ -354,3 +354,85 @@ async def test_cannot_get_random_card_in_other_users_workspace(client, workspace
 
     response = await client.get(f"/workspaces/{workspace_id}/cards/random")
     assert response.status_code == 404
+
+
+async def test_list_cards_search_finds_matching_term(authenticated_client, workspace_id):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Apple"})
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Banana"})
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards", params={"search": "App"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["term"] == "Apple"
+
+
+async def test_list_cards_search_is_case_insensitive(authenticated_client, workspace_id):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Apple"})
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards", params={"search": "apple"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+
+
+async def test_list_cards_search_matches_substring(authenticated_client, workspace_id):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Pineapple"})
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards", params={"search": "apple"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 1
+
+
+async def test_list_cards_search_no_match_returns_empty(authenticated_client, workspace_id):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Apple"})
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards", params={"search": "zzz"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+    assert data["items"] == []
+
+
+async def test_list_cards_search_combined_with_category_filter(
+        authenticated_client, workspace_id, category_id
+):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Apple"})
+    await authenticated_client.post(
+        f"/workspaces/{workspace_id}/cards", json={"term": "Apple", "category_id": category_id}
+    )
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards",
+        params={"search": "Apple", "category_id": category_id},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["category_id"] == category_id
+
+
+async def test_list_cards_search_escapes_special_characters(authenticated_client, workspace_id):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "cat"})
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "c_t literal"})
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards", params={"search": "c_t"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["term"] == "c_t literal"

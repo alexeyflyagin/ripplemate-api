@@ -44,6 +44,7 @@ class CardService:
             account: Account,
             workspace_id: int,
             category_id: int | None,
+            search: str | None,
             limit: int,
             offset: int,
     ) -> CardListResponse:
@@ -51,7 +52,7 @@ class CardService:
         await self._ensure_valid_category(workspace_id, category_id)
 
         cards, total = await self.repository.list_in_workspace(
-            workspace_id, category_id, limit, offset
+            workspace_id, category_id, search, limit, offset
         )
         return CardListResponse(
             items=[CardRead.model_validate(card) for card in cards],

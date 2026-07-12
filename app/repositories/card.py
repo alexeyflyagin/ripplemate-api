@@ -22,11 +22,19 @@ class CardRepository:
         return result.scalar_one_or_none()
 
     async def list_in_workspace(
-            self, workspace_id: int, category_id: int | None, limit: int, offset: int
+            self,
+            workspace_id: int,
+            category_id: int | None,
+            search: str | None,
+            limit: int,
+            offset: int,
     ) -> tuple[list[Card], int]:
         conditions = [Card.workspace_id == workspace_id]
         if category_id is not None:
             conditions.append(Card.category_id == category_id)
+        if search is not None:
+            escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            conditions.append(Card.term.ilike(f"%{escaped}%", escape="\\"))
 
         count_result = await self.session.execute(
             select(func.count()).select_from(Card).where(*conditions)
