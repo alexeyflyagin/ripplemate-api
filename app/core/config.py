@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     postgres_host: str
     postgres_port: int
     secret_key: str
+    cors_origins: str
 
     model_config = SettingsConfigDict(env_file=".env")
 
@@ -25,6 +26,10 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
         )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 settings = Settings()
