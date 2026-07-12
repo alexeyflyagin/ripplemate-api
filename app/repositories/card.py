@@ -40,6 +40,16 @@ class CardRepository:
 
         return cards, total
 
+    async def get_random_in_workspace(self, workspace_id: int, category_id: int | None) -> Card | None:
+        conditions = [Card.workspace_id == workspace_id]
+        if category_id is not None:
+            conditions.append(Card.category_id == category_id)
+
+        result = await self.session.execute(
+            select(Card).where(*conditions).order_by(func.random()).limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def update(self, card: Card, data: dict) -> Card:
         for field, value in data.items():
             setattr(card, field, value)

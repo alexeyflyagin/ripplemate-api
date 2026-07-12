@@ -67,6 +67,17 @@ class CardService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
         return CardRead.model_validate(card)
 
+    async def get_random_in_workspace(
+            self, account: Account, workspace_id: int, category_id: int | None
+    ) -> CardRead:
+        await self._ensure_owned_workspace(account, workspace_id)
+        await self._ensure_valid_category(workspace_id, category_id)
+
+        card = await self.repository.get_random_in_workspace(workspace_id, category_id)
+        if card is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No cards found")
+        return CardRead.model_validate(card)
+
     async def update_in_workspace(
             self, account: Account, workspace_id: int, card_id: int, payload: CardUpdate
     ) -> CardRead:

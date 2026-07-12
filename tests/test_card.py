@@ -48,7 +48,7 @@ async def test_create_card_rejects_nonexistent_category(authenticated_client, wo
 
 
 async def test_create_card_rejects_category_from_different_workspace(
-    authenticated_client, workspace_id, category_id
+        authenticated_client, workspace_id, category_id
 ):
     other_workspace = await authenticated_client.post("/workspaces", json={"name": "Other"})
     other_workspace_id = other_workspace.json()["id"]
@@ -91,7 +91,7 @@ async def test_list_cards_empty(authenticated_client, workspace_id):
 
 
 async def test_list_cards_returns_all_regardless_of_category(
-    authenticated_client, workspace_id, category_id
+        authenticated_client, workspace_id, category_id
 ):
     await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Uncategorized"})
     await authenticated_client.post(
@@ -294,4 +294,63 @@ async def test_cannot_delete_card_in_other_users_workspace(client, workspace_id,
     client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
 
     response = await client.delete(f"/workspaces/{workspace_id}/cards/{card_id}")
+    assert response.status_code == 404
+
+
+async def test_get_random_card_requires_auth(client, workspace_id):
+    del client.headers["Authorization"]
+    response = await client.get(f"/workspaces/{workspace_id}/cards/random")
+    assert response.status_code == 401
+
+
+async def test_get_random_card_no_cards_returns_404(authenticated_client, workspace_id):
+    response = await authenticated_client.get(f"/workspaces/{workspace_id}/cards/random")
+    assert response.status_code == 404
+
+
+async def test_get_random_card_returns_a_card(authenticated_client, workspace_id, card_id):
+    response = await authenticated_client.get(f"/workspaces/{workspace_id}/cards/random")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == card_id
+
+
+async def test_get_random_card_filters_by_category(authenticated_client, workspace_id, category_id):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Uncategorized"})
+    categorized = await authenticated_client.post(
+        f"/workspaces/{workspace_id}/cards", json={"term": "Categorized", "category_id": category_id}
+    )
+    categorized_id = categorized.json()["id"]
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards/random", params={"category_id": category_id}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == categorized_id
+
+
+async def test_get_random_card_rejects_nonexistent_category(authenticated_client, workspace_id, card_id):
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards/random", params={"category_id": 999999}
+    )
+    assert response.status_code == 404
+
+
+async def test_get_random_card_workspace_not_found(authenticated_client):
+    response = await authenticated_client.get("/workspaces/999999/cards/random")
+    assert response.status_code == 404
+
+
+async def test_cannot_get_random_card_in_other_users_workspace(client, workspace_id, card_id):
+    await client.post(
+        "/auth/register",
+        json={"email": "randomintruder@example.com", "password": "password123", "display_name": "Intruder"},
+    )
+    login = await client.post(
+        "/auth/jwt/login", data={"username": "randomintruder@example.com", "password": "password123"}
+    )
+    client.headers["Authorization"] = f"Bearer {login.json()['access_token']}"
+
+    response = await client.get(f"/workspaces/{workspace_id}/cards/random")
     assert response.status_code == 404

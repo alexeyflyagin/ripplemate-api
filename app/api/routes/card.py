@@ -41,6 +41,16 @@ async def list_cards(
     return await service.list_in_workspace(account, workspace_id, category_id, limit, offset)
 
 
+@router.get("/random", response_model=CardRead)
+async def get_random_card(
+        workspace_id: int,
+        category_id: int | None = Query(default=None),
+        account: Account = Depends(get_current_account),
+        service: CardService = Depends(get_card_service),
+):
+    return await service.get_random_in_workspace(account, workspace_id, category_id)
+
+
 @router.get("/{card_id}", response_model=CardRead)
 async def get_card(
         workspace_id: int,
