@@ -59,3 +59,9 @@ async def authenticated_client(client):
     token = response.json()["access_token"]
     client.headers["Authorization"] = f"Bearer {token}"
     return client
+
+
+@pytest_asyncio.fixture
+async def workspace_id(authenticated_client):
+    response = await authenticated_client.post("/workspaces", json={"name": "My Workspace"})
+    return response.json()["id"]
