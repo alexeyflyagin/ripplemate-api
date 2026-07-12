@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, category, health, settings, workspace
+from app.api.routes import auth, card, category, health, settings, workspace
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -10,3 +10,4 @@ api_router.include_router(workspace.router, prefix="/workspaces", tags=["workspa
 api_router.include_router(
     category.router, prefix="/workspaces/{workspace_id}/categories", tags=["categories"]
 )
+api_router.include_router(card.router, prefix="/workspaces/{workspace_id}/cards", tags=["cards"])
