@@ -49,7 +49,7 @@ async def test_register_rejects_short_password(client):
         "/auth/register",
         json={
             "email": "shortpass@example.com",
-            "password": "123",
+            "password": "1234567",
             "display_name": "Someone",
         },
     )

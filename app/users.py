@@ -23,8 +23,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     verification_token_secret = settings.secret_key
 
     async def validate_password(self, password: str, user) -> None:
-        if len(password) < 6:
-            raise InvalidPasswordException(reason="Password must be at least 6 characters long")
+        if len(password) < 8:
+            raise InvalidPasswordException(reason="Password must be at least 8 characters long")
 
     async def create(self, user_create, safe: bool = False, request=None) -> User:
         user = await super().create(user_create, safe=safe, request=request)
