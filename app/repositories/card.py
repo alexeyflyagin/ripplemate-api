@@ -42,7 +42,7 @@ class CardRepository:
         total = count_result.scalar_one()
 
         result = await self.session.execute(
-            select(Card).where(*conditions).order_by(Card.created_at).limit(limit).offset(offset)
+            select(Card).where(*conditions).order_by(Card.created_at.desc()).limit(limit).offset(offset)
         )
         cards = list(result.scalars().all())
 
