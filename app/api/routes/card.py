@@ -36,10 +36,11 @@ async def list_cards(
     search: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=300),
     offset: int = Query(default=0, ge=0),
+    is_favorite: bool | None = Query(default=None),
     account: Account = Depends(get_current_account),
     service: CardService = Depends(get_card_service),
 ):
-    return await service.list_in_workspace(account, workspace_id, category_id, search, limit, offset)
+    return await service.list_in_workspace(account, workspace_id, category_id, search, limit, offset, is_favorite)
 
 
 @router.get("/random", response_model=CardRead)

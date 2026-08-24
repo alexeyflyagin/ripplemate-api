@@ -28,6 +28,7 @@ class CardRepository:
             search: str | None,
             limit: int,
             offset: int,
+            is_favorite: bool | None
     ) -> tuple[list[Card], int]:
         conditions = [Card.workspace_id == workspace_id]
         if category_id is not None:
@@ -35,6 +36,8 @@ class CardRepository:
         if search is not None:
             escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             conditions.append(Card.term.ilike(f"%{escaped}%", escape="\\"))
+        if is_favorite is not None:
+            conditions.append(Card.is_favorite == is_favorite)
 
         count_result = await self.session.execute(
             select(func.count()).select_from(Card).where(*conditions)

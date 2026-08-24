@@ -8,6 +8,7 @@ class CardRead(BaseModel):
     term: str
     category_id: int | None
     created_at: datetime
+    is_favorite: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -37,6 +38,7 @@ class CardCreate(BaseModel):
 class CardUpdate(BaseModel):
     term: str | None = None
     category_id: int | None = None
+    is_favorite: bool | None = None
 
     @model_validator(mode="after")
     def reject_explicit_null_term(self) -> "CardUpdate":

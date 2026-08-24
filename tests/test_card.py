@@ -436,3 +436,50 @@ async def test_list_cards_search_escapes_special_characters(authenticated_client
     data = response.json()
     assert data["total"] == 1
     assert data["items"][0]["term"] == "c_t literal"
+
+
+async def test_update_card_favorite(authenticated_client, workspace_id, card_id):
+    response = await authenticated_client.patch(
+        f"/workspaces/{workspace_id}/cards/{card_id}", json={"is_favorite": True}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_favorite"] is True
+
+    response = await authenticated_client.patch(
+        f"/workspaces/{workspace_id}/cards/{card_id}",
+        json={"is_favorite": False},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["is_favorite"] is False
+
+
+async def test_list_cards_with_favorite_filter(
+        authenticated_client, workspace_id
+):
+    await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Watermelon"})
+    apple_card = await authenticated_client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Apple"})
+    await authenticated_client.patch(
+        f"/workspaces/{workspace_id}/cards/{apple_card.json()["id"]}", json={"is_favorite": True}
+    )
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards",
+        params={"is_favorite": True},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["term"] == "Apple"
+
+    response = await authenticated_client.get(
+        f"/workspaces/{workspace_id}/cards",
+        params={"is_favorite": False},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["term"] == "Watermelon"
