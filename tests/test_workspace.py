@@ -228,3 +228,20 @@ async def test_cannot_get_other_users_workspace(client, workspace_id):
 
     response = await client.get(f"/workspaces/{workspace_id}")
     assert response.status_code == 404
+
+
+async def test_cannot_delete_last_workspace(authenticated_client):
+    response = await authenticated_client.get("/workspaces")
+    assert response.status_code == 200
+
+    workspaces = response.json()
+    assert len(workspaces) == 1
+
+    workspace_id = workspaces[0]["id"]
+
+    response = await authenticated_client.delete(
+        f"/workspaces/{workspace_id}"
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Cannot delete the last workspace"

@@ -53,4 +53,7 @@ class WorkspaceService:
         workspace = await self.repository.get_owned(workspace_id, account.id)
         if workspace is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        count = await self.repository.count_owned(account.id)
+        if count == 1:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot delete the last workspace")
         await self.repository.delete(workspace)
