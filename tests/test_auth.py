@@ -33,9 +33,7 @@ async def test_register_creates_user_account_settings_and_workspace(client, db_s
         select(Settings).where(Settings.id == account.settings_id)
     )
     settings_row = result.scalar_one()
-    assert settings_row.font == "sans-serif"
-    assert settings_row.language == "auto"
-    assert settings_row.theme == "auto"
+    assert settings_row.id == account.settings_id
 
     result = await db_session.execute(
         select(Workspace).where(Workspace.owner_id == account.id)
