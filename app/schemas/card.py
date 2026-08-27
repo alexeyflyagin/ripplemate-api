@@ -1,27 +1,26 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class CardRead(BaseModel):
-    id: int
+    id: str = Field(validation_alias="public_id")
     term: str
     category_id: str | None = None
     created_at: datetime
     is_favorite: bool
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     @model_validator(mode="before")
     @classmethod
     def resolve_category_public_id(cls, data):
-        # data — ORM Card или dict. Заменяем int category_id на public_id категории.
         if isinstance(data, dict):
             return data
 
         category = getattr(data, "category", None)
         payload = {
-            "id": data.id,
+            "public_id": data.public_id,
             "term": data.term,
             "created_at": data.created_at,
             "is_favorite": data.is_favorite,

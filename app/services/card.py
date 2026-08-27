@@ -72,10 +72,10 @@ class CardService:
         )
 
     async def get_in_workspace(
-        self, account: Account, workspace_public_id: str, card_id: int
+        self, account: Account, workspace_public_id: str, card_public_id: str
     ) -> CardRead:
         workspace = await self._resolve_owned_workspace(account, workspace_public_id)
-        card = await self.repository.get_in_workspace(card_id, workspace.id)
+        card = await self.repository.get_in_workspace(card_public_id, workspace.id)
         if card is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
         return CardRead.model_validate(card)
@@ -92,10 +92,10 @@ class CardService:
         return CardRead.model_validate(card)
 
     async def update_in_workspace(
-        self, account: Account, workspace_public_id: str, card_id: int, payload: CardUpdate
+        self, account: Account, workspace_public_id: str, card_public_id: str, payload: CardUpdate
     ) -> CardRead:
         workspace = await self._resolve_owned_workspace(account, workspace_public_id)
-        card = await self.repository.get_in_workspace(card_id, workspace.id)
+        card = await self.repository.get_in_workspace(card_public_id, workspace.id)
         if card is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
 
@@ -111,10 +111,10 @@ class CardService:
         return CardRead.model_validate(card)
 
     async def delete_in_workspace(
-        self, account: Account, workspace_public_id: str, card_id: int
+        self, account: Account, workspace_public_id: str, card_public_id: str
     ) -> None:
         workspace = await self._resolve_owned_workspace(account, workspace_public_id)
-        card = await self.repository.get_in_workspace(card_id, workspace.id)
+        card = await self.repository.get_in_workspace(card_public_id, workspace.id)
         if card is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Card not found")
         await self.repository.delete(card)

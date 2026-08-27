@@ -56,7 +56,7 @@ async def get_random_card(
 @router.get("/{card_id}", response_model=CardRead)
 async def get_card(
         workspace_id: str,
-        card_id: int,
+        card_id: str,
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),
 ):
@@ -66,7 +66,7 @@ async def get_card(
 @router.patch("/{card_id}", response_model=CardRead)
 async def update_card(
         workspace_id: str,
-        card_id: int,
+        card_id: str,
         payload: CardUpdate,
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),
@@ -77,7 +77,7 @@ async def update_card(
 @router.delete("/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_card(
         workspace_id: str,
-        card_id: int,
+        card_id: str,
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),
 ):

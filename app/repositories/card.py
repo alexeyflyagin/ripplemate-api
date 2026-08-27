@@ -15,9 +15,9 @@ class CardRepository:
         await self.session.refresh(card)
         return card
 
-    async def get_in_workspace(self, card_id: int, workspace_id: int) -> Card | None:
+    async def get_in_workspace(self, card_public_id: str, workspace_id: int) -> Card | None:
         result = await self.session.execute(
-            select(Card).where(Card.id == card_id, Card.workspace_id == workspace_id)
+            select(Card).where(Card.public_id == card_public_id, Card.workspace_id == workspace_id)
         )
         return result.scalar_one_or_none()
 
