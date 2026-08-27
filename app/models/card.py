@@ -1,9 +1,10 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, String, func, Boolean
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, String, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.category import Category
 
 
 class Card(Base):
@@ -21,4 +22,8 @@ class Card(Base):
         BigInteger, ForeignKey("category.id", ondelete="CASCADE"), nullable=True
     )
     term: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_favorite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false",)
+    is_favorite: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+
+    category: Mapped[Category | None] = relationship(lazy="joined")

@@ -20,17 +20,22 @@ class CategoryRepository:
         await self.session.refresh(category)
         return category
 
-    async def get_in_workspace(self, category_id: int, workspace_id: int) -> Category | None:
+    async def get_in_workspace(
+        self, category_public_id: str, workspace_id: int
+    ) -> Category | None:
         result = await self.session.execute(
             select(Category).where(
-                Category.id == category_id, Category.workspace_id == workspace_id
+                Category.public_id == category_public_id,
+                Category.workspace_id == workspace_id,
             )
         )
         return result.scalar_one_or_none()
 
     async def list_in_workspace(self, workspace_id: int) -> list[Category]:
         result = await self.session.execute(
-            select(Category).where(Category.workspace_id == workspace_id).order_by(Category.created_at)
+            select(Category)
+            .where(Category.workspace_id == workspace_id)
+            .order_by(Category.created_at)
         )
         return list(result.scalars().all())
 

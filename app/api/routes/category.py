@@ -18,7 +18,7 @@ def get_category_service(session: AsyncSession = Depends(get_session)) -> Catego
 
 @router.post("", response_model=CategoryRead, status_code=status.HTTP_201_CREATED)
 async def create_category(
-    workspace_id: int,
+    workspace_id: str,
     payload: CategoryCreate,
     account: Account = Depends(get_current_account),
     service: CategoryService = Depends(get_category_service),
@@ -28,7 +28,7 @@ async def create_category(
 
 @router.get("", response_model=list[CategoryRead])
 async def list_categories(
-    workspace_id: int,
+    workspace_id: str,
     account: Account = Depends(get_current_account),
     service: CategoryService = Depends(get_category_service),
 ):
@@ -37,8 +37,8 @@ async def list_categories(
 
 @router.get("/{category_id}", response_model=CategoryRead)
 async def get_category(
-    workspace_id: int,
-    category_id: int,
+    workspace_id: str,
+    category_id: str,
     account: Account = Depends(get_current_account),
     service: CategoryService = Depends(get_category_service),
 ):
@@ -47,8 +47,8 @@ async def get_category(
 
 @router.patch("/{category_id}", response_model=CategoryRead)
 async def rename_category(
-    workspace_id: int,
-    category_id: int,
+    workspace_id: str,
+    category_id: str,
     payload: CategoryUpdate,
     account: Account = Depends(get_current_account),
     service: CategoryService = Depends(get_category_service),
@@ -58,8 +58,8 @@ async def rename_category(
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(
-    workspace_id: int,
-    category_id: int,
+    workspace_id: str,
+    category_id: str,
     account: Account = Depends(get_current_account),
     service: CategoryService = Depends(get_category_service),
 ):

@@ -1,14 +1,16 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class WorkspaceRead(BaseModel):
-    id: int
+    id: str = Field(validation_alias="public_id")
     name: str
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True
+    )
 
 
 class WorkspaceCreate(BaseModel):

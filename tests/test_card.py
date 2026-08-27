@@ -42,7 +42,7 @@ async def test_create_card_rejects_term_too_long(authenticated_client, workspace
 
 async def test_create_card_rejects_nonexistent_category(authenticated_client, workspace_id):
     response = await authenticated_client.post(
-        f"/workspaces/{workspace_id}/cards", json={"term": "Hello", "category_id": 999999}
+        f"/workspaces/{workspace_id}/cards", json={"term": "Hello", "category_id": "nonexistent"}
     )
     assert response.status_code == 404
 
@@ -242,7 +242,7 @@ async def test_update_card_rejects_blank_term(authenticated_client, workspace_id
 
 async def test_update_card_rejects_nonexistent_category(authenticated_client, workspace_id, card_id):
     response = await authenticated_client.patch(
-        f"/workspaces/{workspace_id}/cards/{card_id}", json={"category_id": 999999}
+        f"/workspaces/{workspace_id}/cards/{card_id}", json={"category_id": "nonexistent"}
     )
     assert response.status_code == 404
 
@@ -332,7 +332,7 @@ async def test_get_random_card_filters_by_category(authenticated_client, workspa
 
 async def test_get_random_card_rejects_nonexistent_category(authenticated_client, workspace_id, card_id):
     response = await authenticated_client.get(
-        f"/workspaces/{workspace_id}/cards/random", params={"category_id": 999999}
+        f"/workspaces/{workspace_id}/cards/random", params={"category_id": "nonexistent"}
     )
     assert response.status_code == 404
 

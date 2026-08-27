@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from nanoid import generate
 from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +15,13 @@ class Category(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    public_id: Mapped[str] = mapped_column(
+        String(16),
+        unique=True,
+        index=True,
+        nullable=False,
+        default=lambda: generate(size=16),
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     name: Mapped[str] = mapped_column(String(24), nullable=False)
     workspace_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("workspace.id", ondelete="CASCADE"),

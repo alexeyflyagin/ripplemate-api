@@ -21,7 +21,7 @@ def get_card_service(session: AsyncSession = Depends(get_session)) -> CardServic
 
 @router.post("", response_model=CardRead, status_code=status.HTTP_201_CREATED)
 async def create_card(
-        workspace_id: int,
+        workspace_id: str,
         payload: CardCreate,
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),
@@ -31,8 +31,8 @@ async def create_card(
 
 @router.get("", response_model=CardListResponse)
 async def list_cards(
-    workspace_id: int,
-    category_id: int | None = Query(default=None),
+    workspace_id: str,
+    category_id: str | None = Query(default=None),
     search: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=300),
     offset: int = Query(default=0, ge=0),
@@ -45,8 +45,8 @@ async def list_cards(
 
 @router.get("/random", response_model=CardRead)
 async def get_random_card(
-        workspace_id: int,
-        category_id: int | None = Query(default=None),
+        workspace_id: str,
+        category_id: str | None = Query(default=None),
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),
 ):
@@ -55,7 +55,7 @@ async def get_random_card(
 
 @router.get("/{card_id}", response_model=CardRead)
 async def get_card(
-        workspace_id: int,
+        workspace_id: str,
         card_id: int,
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),
@@ -65,7 +65,7 @@ async def get_card(
 
 @router.patch("/{card_id}", response_model=CardRead)
 async def update_card(
-        workspace_id: int,
+        workspace_id: str,
         card_id: int,
         payload: CardUpdate,
         account: Account = Depends(get_current_account),
@@ -76,7 +76,7 @@ async def update_card(
 
 @router.delete("/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_card(
-        workspace_id: int,
+        workspace_id: str,
         card_id: int,
         account: Account = Depends(get_current_account),
         service: CardService = Depends(get_card_service),

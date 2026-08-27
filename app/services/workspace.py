@@ -24,16 +24,16 @@ class WorkspaceService:
         workspaces = await self.repository.list_owned(account.id)
         return [WorkspaceRead.model_validate(workspace) for workspace in workspaces]
 
-    async def get_for_account(self, account: Account, workspace_id: int) -> WorkspaceRead:
-        workspace = await self.repository.get_owned(workspace_id, account.id)
+    async def get_for_account(self, account: Account, workspace_public_id: str) -> WorkspaceRead:
+        workspace = await self.repository.get_owned(workspace_public_id, account.id)
         if workspace is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
         return WorkspaceRead.model_validate(workspace)
 
     async def rename_for_account(
-        self, account: Account, workspace_id: int, payload: WorkspaceUpdate
+        self, account: Account, workspace_public_id: str, payload: WorkspaceUpdate
     ) -> WorkspaceRead:
-        workspace = await self.repository.get_owned(workspace_id, account.id)
+        workspace = await self.repository.get_owned(workspace_public_id, account.id)
         if workspace is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
@@ -49,8 +49,8 @@ class WorkspaceService:
 
         return WorkspaceRead.model_validate(workspace)
 
-    async def delete_for_account(self, account: Account, workspace_id: int) -> None:
-        workspace = await self.repository.get_owned(workspace_id, account.id)
+    async def delete_for_account(self, account: Account, workspace_public_id: str) -> None:
+        workspace = await self.repository.get_owned(workspace_public_id, account.id)
         if workspace is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
         count = await self.repository.count_owned(account.id)

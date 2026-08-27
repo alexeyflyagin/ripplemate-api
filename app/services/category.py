@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
 from app.models.account import Account
+from app.models.workspace import Workspace
 from app.repositories.category import CategoryRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
@@ -12,17 +13,20 @@ class CategoryService:
         self.repository = repository
         self.workspace_repository = workspace_repository
 
-    async def _ensure_owned_workspace(self, account: Account, workspace_id: int) -> None:
-        workspace = await self.workspace_repository.get_owned(workspace_id, account.id)
+    async def _resolve_owned_workspace(
+        self, account: Account, workspace_public_id: str
+    ) -> Workspace:
+        workspace = await self.workspace_repository.get_owned(workspace_public_id, account.id)
         if workspace is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+        return workspace
 
     async def create_in_workspace(
-            self, account: Account, workspace_id: int, payload: CategoryCreate
+        self, account: Account, workspace_public_id: str, payload: CategoryCreate
     ) -> CategoryRead:
-        await self._ensure_owned_workspace(account, workspace_id)
+        workspace = await self._resolve_owned_workspace(account, workspace_public_id)
         try:
-            category = await self.repository.create(workspace_id, payload.name)
+            category = await self.repository.create(workspace.id, payload.name)
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -30,25 +34,27 @@ class CategoryService:
             )
         return CategoryRead.model_validate(category)
 
-    async def list_in_workspace(self, account: Account, workspace_id: int) -> list[CategoryRead]:
-        await self._ensure_owned_workspace(account, workspace_id)
-        categories = await self.repository.list_in_workspace(workspace_id)
+    async def list_in_workspace(
+        self, account: Account, workspace_public_id: str
+    ) -> list[CategoryRead]:
+        workspace = await self._resolve_owned_workspace(account, workspace_public_id)
+        categories = await self.repository.list_in_workspace(workspace.id)
         return [CategoryRead.model_validate(category) for category in categories]
 
     async def get_in_workspace(
-            self, account: Account, workspace_id: int, category_id: int
+        self, account: Account, workspace_public_id: str, category_public_id: str
     ) -> CategoryRead:
-        await self._ensure_owned_workspace(account, workspace_id)
-        category = await self.repository.get_in_workspace(category_id, workspace_id)
+        workspace = await self._resolve_owned_workspace(account, workspace_public_id)
+        category = await self.repository.get_in_workspace(category_public_id, workspace.id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
         return CategoryRead.model_validate(category)
 
     async def rename_in_workspace(
-            self, account: Account, workspace_id: int, category_id: int, payload: CategoryUpdate
+        self, account: Account, workspace_public_id: str, category_public_id: str, payload: CategoryUpdate
     ) -> CategoryRead:
-        await self._ensure_owned_workspace(account, workspace_id)
-        category = await self.repository.get_in_workspace(category_id, workspace_id)
+        workspace = await self._resolve_owned_workspace(account, workspace_public_id)
+        category = await self.repository.get_in_workspace(category_public_id, workspace.id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
@@ -65,11 +71,10 @@ class CategoryService:
         return CategoryRead.model_validate(category)
 
     async def delete_in_workspace(
-            self, account: Account, workspace_id: int, category_id: int
+        self, account: Account, workspace_public_id: str, category_public_id: str
     ) -> None:
-        await self._ensure_owned_workspace(account, workspace_id)
-        category = await self.repository.get_in_workspace(category_id, workspace_id)
+        workspace = await self._resolve_owned_workspace(account, workspace_public_id)
+        category = await self.repository.get_in_workspace(category_public_id, workspace.id)
         if category is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
-
         await self.repository.delete(category)

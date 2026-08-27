@@ -6,11 +6,28 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 class CardRead(BaseModel):
     id: int
     term: str
-    category_id: int | None
+    category_id: str | None = None
     created_at: datetime
     is_favorite: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_category_public_id(cls, data):
+        # data — ORM Card или dict. Заменяем int category_id на public_id категории.
+        if isinstance(data, dict):
+            return data
+
+        category = getattr(data, "category", None)
+        payload = {
+            "id": data.id,
+            "term": data.term,
+            "created_at": data.created_at,
+            "is_favorite": data.is_favorite,
+            "category_id": category.public_id if category is not None else None,
+        }
+        return payload
 
 
 class CardListResponse(BaseModel):
@@ -22,7 +39,7 @@ class CardListResponse(BaseModel):
 
 class CardCreate(BaseModel):
     term: str
-    category_id: int | None = None
+    category_id: str | None = None
 
     @field_validator("term")
     @classmethod
@@ -37,7 +54,7 @@ class CardCreate(BaseModel):
 
 class CardUpdate(BaseModel):
     term: str | None = None
-    category_id: int | None = None
+    category_id: str | None = None
     is_favorite: bool | None = None
 
     @model_validator(mode="after")

@@ -20,10 +20,10 @@ class WorkspaceRepository:
         await self.session.refresh(workspace)
         return workspace
 
-    async def get_owned(self, workspace_id: int, owner_id: int) -> Workspace | None:
+    async def get_owned(self, public_id: str, owner_id: int) -> Workspace | None:
         result = await self.session.execute(
             select(Workspace).where(
-                Workspace.id == workspace_id, Workspace.owner_id == owner_id
+                Workspace.public_id == public_id, Workspace.owner_id == owner_id
             )
         )
         return result.scalar_one_or_none()
@@ -46,9 +46,7 @@ class WorkspaceRepository:
 
     async def count_owned(self, owner_id: int) -> int:
         result = await self.session.execute(
-            select(func.count(Workspace.id)).where(
-                Workspace.owner_id == owner_id
-            )
+            select(func.count(Workspace.id)).where(Workspace.owner_id == owner_id)
         )
         return result.scalar_one()
 
