@@ -208,3 +208,20 @@ async def test_verify_token_rejected_on_reset_endpoint(client, db_session, mailb
         "/validation/reset-password", json={"token": verify_token, "password": "newpassword1"}
     )
     assert resp.status_code == 400
+
+
+async def test_second_request_within_cooldown_returns_429(client, db_session, mailbox):
+    await _register(client, "cooldown@example.com")
+    await _set_verified(db_session, "cooldown@example.com", True)
+
+    first = await client.post(
+        "/validation/request-reset-password",
+        json={"email": "cooldown@example.com"},
+    )
+    assert first.status_code == 200
+
+    second = await client.post(
+        "/validation/request-reset-password",
+        json={"email": "cooldown@example.com"},
+    )
+    assert second.status_code == 429

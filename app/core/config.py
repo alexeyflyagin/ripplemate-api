@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     password_reset_token_ttl_minutes: int = 30
     email_verify_token_ttl_minutes: int = 1440
+    resend_cooldown_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env")
 

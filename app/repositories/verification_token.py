@@ -38,6 +38,20 @@ class VerificationTokenRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_latest_for_user(
+        self, user_id: uuid.UUID, action: str
+    ) -> VerificationToken | None:
+        result = await self.session.execute(
+            select(VerificationToken)
+            .where(
+                VerificationToken.user_id == user_id,
+                VerificationToken.action == action,
+            )
+            .order_by(VerificationToken.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def delete(self, token: VerificationToken) -> None:
         await self.session.delete(token)
         await self.session.commit()

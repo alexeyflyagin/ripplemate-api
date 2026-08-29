@@ -11,7 +11,7 @@ from app.schemas.verification import (
     VerifyEmail,
 )
 from app.services.email import EmailSender, get_email_sender
-from app.services.verification import VerificationService
+from app.services.verification import RateLimitError, VerificationService
 from app.users import UserManager, get_user_manager
 
 router = APIRouter()
@@ -39,7 +39,13 @@ async def forgot_password(
     payload: ResetPasswordRequest,
     service: VerificationService = Depends(get_verification_service),
 ):
-    await service.request_password_reset(payload.email)
+    try:
+        await service.request_password_reset(payload.email)
+    except RateLimitError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please wait before trying again.",
+        )
     return _NEUTRAL
 
 
@@ -62,7 +68,13 @@ async def request_verify_token(
     payload: VerifyEmailRequest,
     service: VerificationService = Depends(get_verification_service),
 ):
-    await service.request_email_verification(payload.email)
+    try:
+        await service.request_email_verification(payload.email)
+    except RateLimitError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please wait before trying again.",
+        )
     return _NEUTRAL
 
 

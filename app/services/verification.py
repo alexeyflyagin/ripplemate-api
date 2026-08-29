@@ -13,6 +13,10 @@ from app.services.email import EmailSender
 from app.services.email_templates import render
 
 
+class RateLimitError(Exception):
+    """Raised when a verification email was requested too soon after the last one."""
+
+
 def _hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
 
@@ -87,9 +91,25 @@ class VerificationService:
         )
         return raw_token
 
+    async def _enforce_cooldown(self, user_id, action: str) -> None:
+        # Note: only real users are rate-limited here (tokens carry user_id).
+        # A request for a non-existent email still returns neutrally, so the
+        # 429-vs-200 difference is a minor, accepted trade-off for now.
+        last = await self.repository.get_latest_for_user(user_id, action)
+        if last is None:
+            return
+        created_at = last.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        elapsed = (datetime.now(timezone.utc) - created_at).total_seconds()
+        if elapsed < settings.resend_cooldown_seconds:
+            raise RateLimitError()
+
     async def _issue_and_send(self, user: User, action: str) -> None:
         config = _ACTION_CONFIG[action]
         ttl_minutes = config["ttl"]()
+
+        await self._enforce_cooldown(user.id, action)
 
         raw_token = await self._create_token(user.id, action, ttl_minutes)
         link = f"{settings.frontend_url}{config['path']}?token={raw_token}"
