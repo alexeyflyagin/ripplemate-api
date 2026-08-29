@@ -4,11 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.repositories.verification_token import VerificationTokenRepository
 from app.schemas.verification import (
-    ForgotPasswordRequest,
-    MessageResponse,
-    RequestVerifyRequest,
     ResetPasswordRequest,
+    MessageResponse,
     VerifyEmailRequest,
+    ResetPassword,
+    VerifyEmail,
 )
 from app.services.email import EmailSender, get_email_sender
 from app.services.verification import VerificationService
@@ -36,7 +36,7 @@ def get_verification_service(
 
 @router.post("/request-reset-password", response_model=MessageResponse)
 async def forgot_password(
-    payload: ForgotPasswordRequest,
+    payload: ResetPasswordRequest,
     service: VerificationService = Depends(get_verification_service),
 ):
     await service.request_password_reset(payload.email)
@@ -45,7 +45,7 @@ async def forgot_password(
 
 @router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(
-    payload: ResetPasswordRequest,
+    payload: ResetPassword,
     service: VerificationService = Depends(get_verification_service),
 ):
     ok = await service.reset_password(payload.token, payload.password)
@@ -59,7 +59,7 @@ async def reset_password(
 
 @router.post("/request-verify-email", response_model=MessageResponse)
 async def request_verify_token(
-    payload: RequestVerifyRequest,
+    payload: VerifyEmailRequest,
     service: VerificationService = Depends(get_verification_service),
 ):
     await service.request_email_verification(payload.email)
@@ -68,7 +68,7 @@ async def request_verify_token(
 
 @router.post("/verify-email", response_model=MessageResponse)
 async def verify_email(
-    payload: VerifyEmailRequest,
+    payload: VerifyEmail,
     service: VerificationService = Depends(get_verification_service),
 ):
     ok = await service.verify_email(payload.token)

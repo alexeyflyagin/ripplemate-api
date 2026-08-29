@@ -1,20 +1,20 @@
 from pydantic import BaseModel, EmailStr, Field
 
 
-class ForgotPasswordRequest(BaseModel):
+class ResetPasswordRequest(BaseModel):
     email: EmailStr
 
 
-class ResetPasswordRequest(BaseModel):
+class ResetPassword(BaseModel):
     token: str
     password: str = Field(min_length=8)
 
 
-class RequestVerifyRequest(BaseModel):
+class VerifyEmailRequest(BaseModel):
     email: EmailStr
 
 
-class VerifyEmailRequest(BaseModel):
+class VerifyEmail(BaseModel):
     token: str
 
 
