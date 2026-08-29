@@ -14,7 +14,7 @@ from app.api.routes import (
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router, prefix="/auth")
-api_router.include_router(verification.router, prefix="/auth", tags=["auth"])
+api_router.include_router(verification.router, prefix="/validation", tags=["validation"])
 api_router.include_router(account.router, prefix="/account", tags=["account"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
 api_router.include_router(workspace.router, prefix="/workspaces", tags=["workspaces"])

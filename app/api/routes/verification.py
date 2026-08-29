@@ -34,7 +34,7 @@ def get_verification_service(
     )
 
 
-@router.post("/forgot-password", response_model=MessageResponse)
+@router.post("/request-reset-password", response_model=MessageResponse)
 async def forgot_password(
     payload: ForgotPasswordRequest,
     service: VerificationService = Depends(get_verification_service),
@@ -57,7 +57,7 @@ async def reset_password(
     return MessageResponse(message="Password has been reset.")
 
 
-@router.post("/request-verify-token", response_model=MessageResponse)
+@router.post("/request-verify-email", response_model=MessageResponse)
 async def request_verify_token(
     payload: RequestVerifyRequest,
     service: VerificationService = Depends(get_verification_service),
@@ -66,7 +66,7 @@ async def request_verify_token(
     return _NEUTRAL
 
 
-@router.post("/verify", response_model=MessageResponse)
+@router.post("/verify-email", response_model=MessageResponse)
 async def verify_email(
     payload: VerifyEmailRequest,
     service: VerificationService = Depends(get_verification_service),
