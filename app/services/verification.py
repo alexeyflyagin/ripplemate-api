@@ -10,29 +10,32 @@ from app.models.user import User
 from app.models.verification_token import VerificationAction, VerificationToken
 from app.repositories.verification_token import VerificationTokenRepository
 from app.services.email import EmailSender
+from app.services.email_templates import render
 
 
 def _hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
 
 
-def _password_reset_email(link: str, ttl_minutes: int) -> tuple[str, str]:
-    subject = "Password reset"
-    body = (
+def _password_reset_email(link: str, ttl_minutes: int) -> tuple[str, str, str]:
+    subject = "Reset your password"
+    text = (
         "You requested a password reset.\n"
         f"Open this link to set a new password (valid {ttl_minutes} minutes):\n{link}\n"
         "If you did not request this, ignore this email."
     )
-    return subject, body
+    html = render("password_reset.html", link=link, ttl=ttl_minutes)
+    return subject, text, html
 
 
-def _email_verify_email(link: str, ttl_minutes: int) -> tuple[str, str]:
+def _email_verify_email(link: str, ttl_minutes: int) -> tuple[str, str, str]:
     subject = "Confirm your email"
-    body = (
+    text = (
         "Confirm your email address by opening this link "
         f"(valid {ttl_minutes // 60} hours):\n{link}"
     )
-    return subject, body
+    html = render("email_verify.html", link=link, ttl=ttl_minutes // 60)
+    return subject, text, html
 
 
 # One entry per confirmation type. Add a new VerificationAction plus a row here
@@ -90,8 +93,10 @@ class VerificationService:
 
         raw_token = await self._create_token(user.id, action, ttl_minutes)
         link = f"{settings.frontend_url}{config['path']}?token={raw_token}"
-        subject, body = config["build_email"](link, ttl_minutes)
-        await self.email_sender.send(to=user.email, subject=subject, body=body)
+        subject, text, html = config["build_email"](link, ttl_minutes)
+        await self.email_sender.send(
+            to=user.email, subject=subject, text=text, html=html
+        )
 
     async def _consume_token(self, raw_token: str, action: str) -> VerificationToken | None:
         record = await self.repository.get_by_hash(_hash_token(raw_token), action)

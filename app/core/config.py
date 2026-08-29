@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     postgres_port: int
     secret_key: str
     cors_origins: str
+    resend_api_key: str
+    resend_from_email: str = "onboarding@resend.dev"
     frontend_url: str = "http://localhost:5173"
     password_reset_token_ttl_minutes: int = 30
     email_verify_token_ttl_minutes: int = 1440

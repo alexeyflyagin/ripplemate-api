@@ -14,13 +14,17 @@ class RecordingEmailSender(EmailSender):
     def __init__(self):
         self.sent = []
 
-    async def send(self, to: str, subject: str, body: str) -> None:
-        self.sent.append({"to": to, "subject": subject, "body": body})
+    async def send(
+        self, to: str, subject: str, text: str, html: str | None = None
+    ) -> None:
+        self.sent.append(
+            {"to": to, "subject": subject, "text": text, "html": html}
+        )
 
     def token_for(self, to: str) -> str | None:
         for message in reversed(self.sent):
             if message["to"] == to:
-                match = re.search(r"token=([\w\-]+)", message["body"])
+                match = re.search(r"token=([\w\-]+)", message["text"])
                 if match:
                     return match.group(1)
         return None
