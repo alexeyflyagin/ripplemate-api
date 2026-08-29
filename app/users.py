@@ -27,9 +27,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             raise InvalidPasswordException(reason="Password must be at least 8 characters long")
 
     async def create(self, user_create, safe: bool = False, request=None) -> User:
-        user = await super().create(user_create, safe=safe, request=request)
-
         session = self.user_db.session
+
+        existing_user = await self.user_db.get_by_email(user_create.email)
+        if existing_user:
+            await self.user_db.delete(existing_user)
+            await session.flush()
+
+        user = await super().create(user_create, safe=safe, request=request)
 
         try:
             new_settings = Settings()
