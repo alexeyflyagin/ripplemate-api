@@ -1,7 +1,8 @@
 import uuid
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from fastapi_users import BaseUserManager, FastAPIUsers, InvalidPasswordException, UUIDIDMixin
+from fastapi_users.exceptions import UserAlreadyExists
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy import select
@@ -29,8 +30,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def create(self, user_create, safe: bool = False, request=None) -> User:
         session = self.user_db.session
 
+        user_create.email = user_create.email.lower()
+
         existing_user = await self.user_db.get_by_email(user_create.email)
         if existing_user:
+            if existing_user.is_verified:
+                raise UserAlreadyExists()
             await self.user_db.delete(existing_user)
             await session.flush()
 
@@ -88,3 +93,15 @@ async def get_current_account(
 ) -> Account:
     result = await session.execute(select(Account).where(Account.user_id == user.id))
     return result.scalar_one()
+
+
+async def get_verified_account(
+        user: User = Depends(current_active_user),
+        account: Account = Depends(get_current_account),
+) -> Account:
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email is not verified",
+        )
+    return account

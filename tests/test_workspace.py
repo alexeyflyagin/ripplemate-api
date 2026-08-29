@@ -1,3 +1,5 @@
+from tests.conftest import verify_user
+
 async def test_create_workspace_requires_auth(client):
     response = await client.post("/workspaces", json={"name": "Test"})
     assert response.status_code == 401
@@ -30,11 +32,12 @@ async def test_create_workspace_rejects_duplicate_name_for_same_owner(authentica
     assert response.status_code == 409
 
 
-async def test_create_workspace_allows_same_name_for_different_owners(client):
+async def test_create_workspace_allows_same_name_for_different_owners(client, db_session):
     await client.post(
         "/auth/register",
         json={"email": "wsowner1@example.com", "password": "password123", "display_name": "Owner One"},
     )
+    await verify_user(db_session, "wsowner1@example.com")
     login_one = await client.post(
         "/auth/jwt/login", data={"username": "wsowner1@example.com", "password": "password123"}
     )
@@ -44,6 +47,7 @@ async def test_create_workspace_allows_same_name_for_different_owners(client):
         "/auth/register",
         json={"email": "wsowner2@example.com", "password": "password123", "display_name": "Owner Two"},
     )
+    await verify_user(db_session, "wsowner2@example.com")
     login_two = await client.post(
         "/auth/jwt/login", data={"username": "wsowner2@example.com", "password": "password123"}
     )
@@ -106,11 +110,12 @@ async def test_rename_workspace_rejects_duplicate_name(authenticated_client, wor
     assert response.status_code == 409
 
 
-async def test_cannot_rename_other_users_workspace(client, workspace_id):
+async def test_cannot_rename_other_users_workspace(client, db_session, workspace_id):
     await client.post(
         "/auth/register",
         json={"email": "intruder@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "intruder@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "intruder@example.com", "password": "password123"}
     )
@@ -141,11 +146,12 @@ async def test_delete_workspace_not_found(authenticated_client):
     assert response.status_code == 404
 
 
-async def test_cannot_delete_other_users_workspace(client, workspace_id):
+async def test_cannot_delete_other_users_workspace(client, db_session, workspace_id):
     await client.post(
         "/auth/register",
         json={"email": "intruder2@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "intruder2@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "intruder2@example.com", "password": "password123"}
     )
@@ -179,11 +185,12 @@ async def test_list_workspaces_returns_owned(authenticated_client):
     assert names == {"My workspace", "First", "Second"}
 
 
-async def test_list_workspaces_excludes_other_users_workspaces(client, workspace_id):
+async def test_list_workspaces_excludes_other_users_workspaces(client, db_session, workspace_id):
     await client.post(
         "/auth/register",
         json={"email": "listviewer@example.com", "password": "password123", "display_name": "Viewer"},
     )
+    await verify_user(db_session, "listviewer@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "listviewer@example.com", "password": "password123"}
     )
@@ -216,11 +223,12 @@ async def test_get_workspace_not_found(authenticated_client):
     assert response.status_code == 404
 
 
-async def test_cannot_get_other_users_workspace(client, workspace_id):
+async def test_cannot_get_other_users_workspace(client, db_session, workspace_id):
     await client.post(
         "/auth/register",
         json={"email": "viewer2@example.com", "password": "password123", "display_name": "Viewer Two"},
     )
+    await verify_user(db_session, "viewer2@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "viewer2@example.com", "password": "password123"}
     )

@@ -7,7 +7,7 @@ from app.repositories.category import CategoryRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.category import CategoryCreate, CategoryRead, CategoryUpdate
 from app.services.category import CategoryService
-from app.users import get_current_account
+from app.users import get_verified_account
 
 router = APIRouter()
 
@@ -20,7 +20,7 @@ def get_category_service(session: AsyncSession = Depends(get_session)) -> Catego
 async def create_category(
     workspace_id: str,
     payload: CategoryCreate,
-    account: Account = Depends(get_current_account),
+    account: Account = Depends(get_verified_account),
     service: CategoryService = Depends(get_category_service),
 ):
     return await service.create_in_workspace(account, workspace_id, payload)
@@ -29,7 +29,7 @@ async def create_category(
 @router.get("", response_model=list[CategoryRead])
 async def list_categories(
     workspace_id: str,
-    account: Account = Depends(get_current_account),
+    account: Account = Depends(get_verified_account),
     service: CategoryService = Depends(get_category_service),
 ):
     return await service.list_in_workspace(account, workspace_id)
@@ -39,7 +39,7 @@ async def list_categories(
 async def get_category(
     workspace_id: str,
     category_id: str,
-    account: Account = Depends(get_current_account),
+    account: Account = Depends(get_verified_account),
     service: CategoryService = Depends(get_category_service),
 ):
     return await service.get_in_workspace(account, workspace_id, category_id)
@@ -50,7 +50,7 @@ async def rename_category(
     workspace_id: str,
     category_id: str,
     payload: CategoryUpdate,
-    account: Account = Depends(get_current_account),
+    account: Account = Depends(get_verified_account),
     service: CategoryService = Depends(get_category_service),
 ):
     return await service.rename_in_workspace(account, workspace_id, category_id, payload)
@@ -60,7 +60,7 @@ async def rename_category(
 async def delete_category(
     workspace_id: str,
     category_id: str,
-    account: Account = Depends(get_current_account),
+    account: Account = Depends(get_verified_account),
     service: CategoryService = Depends(get_category_service),
 ):
     await service.delete_in_workspace(account, workspace_id, category_id)

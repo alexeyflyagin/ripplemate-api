@@ -5,6 +5,7 @@ from app.models import Workspace
 from app.models.account import Account
 from app.models.settings import Settings
 from app.models.user import User
+from tests.conftest import verify_user
 
 
 async def test_register_creates_user_account_settings_and_workspace(client, db_session):
@@ -81,7 +82,7 @@ async def test_register_rejects_display_name_too_long(client):
     assert response.status_code == 422
 
 
-async def test_register_rejects_duplicate_email(client):
+async def test_register_rejects_duplicate_verified_email(client, db_session):
     payload = {
         "email": "duplicate@example.com",
         "password": "password123",
@@ -91,10 +92,46 @@ async def test_register_rejects_duplicate_email(client):
     first_response = await client.post("/auth/register", json=payload)
     assert first_response.status_code == 201
 
+    await verify_user(db_session, "duplicate@example.com")
+
     second_response = await client.post(
         "/auth/register", json={**payload, "display_name": "Second User"}
     )
     assert second_response.status_code == 400
+
+
+async def test_register_allows_reregistration_of_unverified_email(client, db_session):
+    payload = {
+        "email": "unverified@example.com",
+        "password": "password123",
+        "display_name": "First User",
+    }
+
+    first_response = await client.post("/auth/register", json=payload)
+    assert first_response.status_code == 201
+
+    result = await db_session.execute(
+        select(User).where(User.email == "unverified@example.com")
+    )
+    first_user_id = result.scalar_one().id
+
+    second_response = await client.post(
+        "/auth/register",
+        json={**payload, "display_name": "Second User"},
+    )
+    assert second_response.status_code == 201
+
+    result = await db_session.execute(
+        select(User).where(User.email == "unverified@example.com")
+    )
+    users = result.scalars().all()
+    assert len(users) == 1
+    assert users[0].id != first_user_id
+
+    result = await db_session.execute(
+        select(Account).where(Account.user_id == users[0].id)
+    )
+    assert result.scalar_one().display_name == "Second User"
 
 
 async def test_register_ignores_is_superuser_flag(client, db_session):
@@ -177,7 +214,7 @@ async def test_register_rejects_malformed_email(client):
     assert response.status_code == 422
 
 
-async def test_register_treats_email_domain_case_sensitively(client):
+async def test_register_treats_email_domain_case_sensitively(client, db_session):
     await client.post(
         "/auth/register",
         json={
@@ -186,6 +223,8 @@ async def test_register_treats_email_domain_case_sensitively(client):
             "display_name": "First",
         },
     )
+
+    await verify_user(db_session, "casetest@example.com")
 
     response = await client.post(
         "/auth/register",
@@ -199,7 +238,7 @@ async def test_register_treats_email_domain_case_sensitively(client):
     assert response.status_code == 400
 
 
-async def test_register_treats_email_case_insensitively(client):
+async def test_register_treats_email_case_insensitively(client, db_session):
     await client.post(
         "/auth/register",
         json={
@@ -208,6 +247,8 @@ async def test_register_treats_email_case_insensitively(client):
             "display_name": "First",
         },
     )
+
+    await verify_user(db_session, "casetest@example.com")
 
     response = await client.post(
         "/auth/register",

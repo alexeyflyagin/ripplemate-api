@@ -8,7 +8,7 @@ from app.repositories.category import CategoryRepository
 from app.repositories.workspace import WorkspaceRepository
 from app.schemas.card import CardCreate, CardListResponse, CardRead, CardUpdate
 from app.services.card import CardService
-from app.users import get_current_account
+from app.users import get_verified_account
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ def get_card_service(session: AsyncSession = Depends(get_session)) -> CardServic
 async def create_card(
         workspace_id: str,
         payload: CardCreate,
-        account: Account = Depends(get_current_account),
+        account: Account = Depends(get_verified_account),
         service: CardService = Depends(get_card_service),
 ):
     return await service.create_in_workspace(account, workspace_id, payload)
@@ -37,7 +37,7 @@ async def list_cards(
     limit: int = Query(default=100, ge=1, le=300),
     offset: int = Query(default=0, ge=0),
     is_favorite: bool | None = Query(default=None),
-    account: Account = Depends(get_current_account),
+    account: Account = Depends(get_verified_account),
     service: CardService = Depends(get_card_service),
 ):
     return await service.list_in_workspace(account, workspace_id, category_id, search, limit, offset, is_favorite)
@@ -47,7 +47,7 @@ async def list_cards(
 async def get_random_card(
         workspace_id: str,
         category_id: str | None = Query(default=None),
-        account: Account = Depends(get_current_account),
+        account: Account = Depends(get_verified_account),
         service: CardService = Depends(get_card_service),
 ):
     return await service.get_random_in_workspace(account, workspace_id, category_id)
@@ -57,7 +57,7 @@ async def get_random_card(
 async def get_card(
         workspace_id: str,
         card_id: str,
-        account: Account = Depends(get_current_account),
+        account: Account = Depends(get_verified_account),
         service: CardService = Depends(get_card_service),
 ):
     return await service.get_in_workspace(account, workspace_id, card_id)
@@ -68,7 +68,7 @@ async def update_card(
         workspace_id: str,
         card_id: str,
         payload: CardUpdate,
-        account: Account = Depends(get_current_account),
+        account: Account = Depends(get_verified_account),
         service: CardService = Depends(get_card_service),
 ):
     return await service.update_in_workspace(account, workspace_id, card_id, payload)
@@ -78,7 +78,7 @@ async def update_card(
 async def delete_card(
         workspace_id: str,
         card_id: str,
-        account: Account = Depends(get_current_account),
+        account: Account = Depends(get_verified_account),
         service: CardService = Depends(get_card_service),
 ):
     await service.delete_in_workspace(account, workspace_id, card_id)

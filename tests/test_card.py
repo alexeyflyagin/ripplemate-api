@@ -1,3 +1,5 @@
+from tests.conftest import verify_user
+
 async def test_create_card_requires_auth(client, workspace_id):
     del client.headers["Authorization"]
     response = await client.post(f"/workspaces/{workspace_id}/cards", json={"term": "Test"})
@@ -65,11 +67,12 @@ async def test_create_card_workspace_not_found(authenticated_client):
     assert response.status_code == 404
 
 
-async def test_cannot_create_card_in_other_users_workspace(client, workspace_id):
+async def test_cannot_create_card_in_other_users_workspace(client, db_session, workspace_id):
     await client.post(
         "/auth/register",
         json={"email": "cardintruder@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "cardintruder@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "cardintruder@example.com", "password": "password123"}
     )
@@ -173,11 +176,12 @@ async def test_get_card_not_found(authenticated_client, workspace_id):
     assert response.status_code == 404
 
 
-async def test_cannot_get_card_in_other_users_workspace(client, workspace_id, card_id):
+async def test_cannot_get_card_in_other_users_workspace(client, db_session, workspace_id, card_id):
     await client.post(
         "/auth/register",
         json={"email": "cardintruder2@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "cardintruder2@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "cardintruder2@example.com", "password": "password123"}
     )
@@ -254,11 +258,12 @@ async def test_update_card_not_found(authenticated_client, workspace_id):
     assert response.status_code == 404
 
 
-async def test_cannot_update_card_in_other_users_workspace(client, workspace_id, card_id):
+async def test_cannot_update_card_in_other_users_workspace(client, db_session, workspace_id, card_id):
     await client.post(
         "/auth/register",
         json={"email": "cardintruder3@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "cardintruder3@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "cardintruder3@example.com", "password": "password123"}
     )
@@ -283,11 +288,12 @@ async def test_delete_card_not_found(authenticated_client, workspace_id):
     assert response.status_code == 404
 
 
-async def test_cannot_delete_card_in_other_users_workspace(client, workspace_id, card_id):
+async def test_cannot_delete_card_in_other_users_workspace(client, db_session, workspace_id, card_id):
     await client.post(
         "/auth/register",
         json={"email": "cardintruder4@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "cardintruder4@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "cardintruder4@example.com", "password": "password123"}
     )
@@ -342,11 +348,12 @@ async def test_get_random_card_workspace_not_found(authenticated_client):
     assert response.status_code == 404
 
 
-async def test_cannot_get_random_card_in_other_users_workspace(client, workspace_id, card_id):
+async def test_cannot_get_random_card_in_other_users_workspace(client, db_session, workspace_id, card_id):
     await client.post(
         "/auth/register",
         json={"email": "randomintruder@example.com", "password": "password123", "display_name": "Intruder"},
     )
+    await verify_user(db_session, "randomintruder@example.com")
     login = await client.post(
         "/auth/jwt/login", data={"username": "randomintruder@example.com", "password": "password123"}
     )

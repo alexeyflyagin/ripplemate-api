@@ -1,8 +1,10 @@
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 import app.models  # noqa: F401
+from app.models.user import User
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import get_session
@@ -43,7 +45,7 @@ async def client(db_session):
 
 
 @pytest_asyncio.fixture
-async def authenticated_client(client):
+async def authenticated_client(client, db_session):
     await client.post(
         "/auth/register",
         json={
@@ -52,6 +54,14 @@ async def authenticated_client(client):
             "display_name": "Settings User",
         },
     )
+
+    result = await db_session.execute(
+        select(User).where(User.email == "settingsuser@example.com")
+    )
+    user = result.scalar_one()
+    user.is_verified = True
+    await db_session.commit()
+
     response = await client.post(
         "/auth/jwt/login",
         data={"username": "settingsuser@example.com", "password": "password123"},
@@ -81,3 +91,10 @@ async def card_id(authenticated_client, workspace_id):
         f"/workspaces/{workspace_id}/cards", json={"term": "My Term"}
     )
     return response.json()["id"]
+
+
+async def verify_user(db_session, email: str) -> None:
+    result = await db_session.execute(select(User).where(User.email == email))
+    user = result.scalar_one()
+    user.is_verified = True
+    await db_session.commit()
