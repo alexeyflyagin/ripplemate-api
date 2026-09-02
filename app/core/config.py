@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     postgres_user: str
     postgres_password: str
     postgres_db: str
-    postgres_test_db: str
     postgres_host: str
     postgres_port: int
     secret_key: str
@@ -17,20 +16,13 @@ class Settings(BaseSettings):
     email_verify_token_ttl_minutes: int = 1440
     resend_cooldown_seconds: int = 60
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env.test")
 
     @property
     def database_url(self) -> str:
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
-
-    @property
-    def test_database_url(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_test_db}"
         )
 
     @property

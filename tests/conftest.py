@@ -13,7 +13,7 @@ from main import app as fastapi_app
 
 @pytest_asyncio.fixture
 async def db_session():
-    engine = create_async_engine(settings.test_database_url)
+    engine = create_async_engine(settings.database_url)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
