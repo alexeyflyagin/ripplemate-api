@@ -1,7 +1,10 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    environment: Literal["development", "production"] = "development"
     postgres_user: str
     postgres_password: str
     postgres_db: str
@@ -18,6 +21,10 @@ class Settings(BaseSettings):
     resend_cooldown_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env.test")
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment == "production"
 
     @property
     def database_url(self) -> str:

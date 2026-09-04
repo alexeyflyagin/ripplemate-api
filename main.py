@@ -8,7 +8,11 @@ from app.core.config import settings
 
 logging.basicConfig(level=logging.ERROR)
 
-app = FastAPI()
+app = FastAPI(
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,
