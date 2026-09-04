@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     postgres_host: str
     postgres_port: int
     secret_key: str
+    api_token: str
     cors_origins: str
     resend_api_key: str
     resend_from_email: str = "onboarding@resend.dev"
