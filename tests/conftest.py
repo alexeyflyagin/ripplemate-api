@@ -39,7 +39,6 @@ async def client(db_session):
     async with AsyncClient(
             transport=ASGITransport(app=fastapi_app), base_url="http://test"
     ) as ac:
-        ac.headers["X-API-Key"] = settings.api_token
         yield ac
 
     fastapi_app.dependency_overrides.clear()
