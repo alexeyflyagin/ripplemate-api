@@ -11,3 +11,7 @@ class AccountRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class AccountExists(BaseModel):
+    exists: bool
