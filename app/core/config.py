@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     password_reset_token_ttl_minutes: int = 30
     email_verify_token_ttl_minutes: int = 1440
     resend_cooldown_seconds: int = 60
+    verification_code_max_attempts: int = 5
 
     model_config = SettingsConfigDict(env_file=".env.test")
 

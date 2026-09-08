@@ -29,15 +29,6 @@ class VerificationTokenRepository:
         await self.session.refresh(token)
         return token
 
-    async def get_by_hash(self, token_hash: str, action: str) -> VerificationToken | None:
-        result = await self.session.execute(
-            select(VerificationToken).where(
-                VerificationToken.token_hash == token_hash,
-                VerificationToken.action == action,
-            )
-        )
-        return result.scalar_one_or_none()
-
     async def get_latest_for_user(
         self, user_id: uuid.UUID, action: str
     ) -> VerificationToken | None:
@@ -52,8 +43,21 @@ class VerificationTokenRepository:
         )
         return result.scalar_one_or_none()
 
+    async def increment_attempts(self, token: VerificationToken) -> None:
+        token.attempts += 1
+        await self.session.commit()
+
     async def delete(self, token: VerificationToken) -> None:
         await self.session.delete(token)
+        await self.session.commit()
+
+    async def delete_for_user(self, user_id: uuid.UUID, action: str) -> None:
+        await self.session.execute(
+            delete(VerificationToken).where(
+                VerificationToken.user_id == user_id,
+                VerificationToken.action == action,
+            )
+        )
         await self.session.commit()
 
     async def delete_expired(self) -> None:

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.repositories.verification_token import VerificationTokenRepository
 from app.schemas.verification import (
+    ErrorResponse,
     ResetPasswordRequest,
     MessageResponse,
     VerifyEmailRequest,
@@ -17,8 +18,30 @@ from app.users import UserManager, get_user_manager
 router = APIRouter()
 
 _NEUTRAL = MessageResponse(
-    message="If an account matches, we've sent an email with further instructions."
+    message="If an account matches, we've sent an email with a code."
 )
+
+_TOO_MANY_REQUESTS_RESPONSE = {
+    status.HTTP_429_TOO_MANY_REQUESTS: {
+        "model": ErrorResponse,
+        "description": "A code was already requested recently; wait for the resend cooldown to elapse.",
+        "content": {
+            "application/json": {
+                "example": {"detail": "Too many requests. Please wait before trying again."}
+            }
+        },
+    },
+}
+
+_INVALID_CODE_RESPONSE = {
+    status.HTTP_400_BAD_REQUEST: {
+        "model": ErrorResponse,
+        "description": "The code is wrong, expired, already used, or the attempt limit was exceeded.",
+        "content": {
+            "application/json": {"example": {"detail": "Invalid or expired code"}}
+        },
+    },
+}
 
 
 def get_verification_service(
@@ -34,7 +57,11 @@ def get_verification_service(
     )
 
 
-@router.post("/request-reset-password", response_model=MessageResponse)
+@router.post(
+    "/request-reset-password",
+    response_model=MessageResponse,
+    responses=_TOO_MANY_REQUESTS_RESPONSE,
+)
 async def forgot_password(
     payload: ResetPasswordRequest,
     service: VerificationService = Depends(get_verification_service),
@@ -49,21 +76,29 @@ async def forgot_password(
     return _NEUTRAL
 
 
-@router.post("/reset-password", response_model=MessageResponse)
+@router.post(
+    "/reset-password",
+    response_model=MessageResponse,
+    responses=_INVALID_CODE_RESPONSE,
+)
 async def reset_password(
     payload: ResetPassword,
     service: VerificationService = Depends(get_verification_service),
 ):
-    ok = await service.reset_password(payload.token, payload.password)
+    ok = await service.reset_password(payload.email, payload.code, payload.password)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired token",
+            detail="Invalid or expired code",
         )
     return MessageResponse(message="Password has been reset.")
 
 
-@router.post("/request-verify-email", response_model=MessageResponse)
+@router.post(
+    "/request-verify-email",
+    response_model=MessageResponse,
+    responses=_TOO_MANY_REQUESTS_RESPONSE,
+)
 async def request_verify_token(
     payload: VerifyEmailRequest,
     service: VerificationService = Depends(get_verification_service),
@@ -78,15 +113,19 @@ async def request_verify_token(
     return _NEUTRAL
 
 
-@router.post("/verify-email", response_model=MessageResponse)
+@router.post(
+    "/verify-email",
+    response_model=MessageResponse,
+    responses=_INVALID_CODE_RESPONSE,
+)
 async def verify_email(
     payload: VerifyEmail,
     service: VerificationService = Depends(get_verification_service),
 ):
-    ok = await service.verify_email(payload.token)
+    ok = await service.verify_email(payload.email, payload.code)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired token",
+            detail="Invalid or expired code",
         )
     return MessageResponse(message="Email verified.")

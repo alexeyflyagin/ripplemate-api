@@ -17,43 +17,49 @@ class RateLimitError(Exception):
     """Raised when a verification email was requested too soon after the last one."""
 
 
-def _hash_token(raw_token: str) -> str:
-    return hashlib.sha256(raw_token.encode()).hexdigest()
+CODE_LENGTH = 5
+_CODE_UPPER_BOUND = 10**CODE_LENGTH
 
 
-def _password_reset_email(link: str, ttl_minutes: int) -> tuple[str, str, str]:
-    subject = "Reset your password"
+def _generate_code() -> str:
+    return f"{secrets.randbelow(_CODE_UPPER_BOUND):0{CODE_LENGTH}d}"
+
+
+def _hash_code(user_id, code: str) -> str:
+    return hashlib.sha256(f"{user_id}:{code}".encode()).hexdigest()
+
+
+def _password_reset_email(code: str, ttl_minutes: int) -> tuple[str, str, str]:
+    subject = "Your password reset code"
     text = (
         "You requested a password reset.\n"
-        f"Open this link to set a new password (valid {ttl_minutes} minutes):\n{link}\n"
+        f"Your code (valid {ttl_minutes} minutes): {code}\n"
         "If you did not request this, ignore this email."
     )
-    html = render("password_reset.html", link=link, ttl=ttl_minutes)
+    html = render("password_reset.html", code=code, ttl=ttl_minutes)
     return subject, text, html
 
 
-def _email_verify_email(link: str, ttl_minutes: int) -> tuple[str, str, str]:
-    subject = "Confirm your email"
+def _email_verify_email(code: str, ttl_minutes: int) -> tuple[str, str, str]:
+    subject = "Your email confirmation code"
     text = (
-        "Confirm your email address by opening this link "
-        f"(valid {ttl_minutes // 60} hours):\n{link}"
+        "Confirm your email address with the code below "
+        f"(valid {ttl_minutes // 60} hours): {code}"
     )
-    html = render("email_verify.html", link=link, ttl=ttl_minutes // 60)
+    html = render("email_verify.html", code=code, ttl=ttl_minutes // 60)
     return subject, text, html
 
 
 # One entry per confirmation type. Add a new VerificationAction plus a row here
-# to introduce a new flow; the token/email machinery is reused unchanged.
+# to introduce a new flow; the code/email machinery is reused unchanged.
 # ttl is read lazily so an env override of the config value is always picked up.
 _ACTION_CONFIG = {
     VerificationAction.PASSWORD_RESET: {
         "ttl": lambda: settings.password_reset_token_ttl_minutes,
-        "path": "/reset-password",
         "build_email": _password_reset_email,
     },
     VerificationAction.EMAIL_VERIFY: {
         "ttl": lambda: settings.email_verify_token_ttl_minutes,
-        "path": "/verify-email",
         "build_email": _email_verify_email,
     },
 }
@@ -78,21 +84,22 @@ class VerificationService:
         )
         return result.scalar_one_or_none()
 
-    async def _create_token(self, user_id, action: str, ttl_minutes: int) -> str:
+    async def _create_code(self, user_id, action: str, ttl_minutes: int) -> str:
         await self.repository.delete_expired()
+        await self.repository.delete_for_user(user_id, action)
 
-        raw_token = secrets.token_urlsafe(32)
+        code = _generate_code()
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
         await self.repository.create(
             user_id=user_id,
-            token_hash=_hash_token(raw_token),
+            token_hash=_hash_code(user_id, code),
             action=action,
             expires_at=expires_at,
         )
-        return raw_token
+        return code
 
     async def _enforce_cooldown(self, user_id, action: str) -> None:
-        # Note: only real users are rate-limited here (tokens carry user_id).
+        # Note: only real users are rate-limited here (codes carry user_id).
         # A request for a non-existent email still returns neutrally, so the
         # 429-vs-200 difference is a minor, accepted trade-off for now.
         last = await self.repository.get_latest_for_user(user_id, action)
@@ -111,24 +118,39 @@ class VerificationService:
 
         await self._enforce_cooldown(user.id, action)
 
-        raw_token = await self._create_token(user.id, action, ttl_minutes)
-        link = f"{settings.frontend_url}{config['path']}?token={raw_token}"
-        subject, text, html = config["build_email"](link, ttl_minutes)
+        code = await self._create_code(user.id, action, ttl_minutes)
+        subject, text, html = config["build_email"](code, ttl_minutes)
         await self.email_sender.send(
             to=user.email, subject=subject, text=text, html=html
         )
 
-    async def _consume_token(self, raw_token: str, action: str) -> VerificationToken | None:
-        record = await self.repository.get_by_hash(_hash_token(raw_token), action)
+    async def _consume_code(
+        self, email: str, raw_code: str, action: str
+    ) -> tuple[VerificationToken, User] | None:
+        user = await self._get_user_by_email(email)
+        if user is None:
+            return None
+
+        record = await self.repository.get_latest_for_user(user.id, action)
         if record is None:
             return None
+
         expires_at = record.expires_at
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         if expires_at < datetime.now(timezone.utc):
             await self.repository.delete(record)
             return None
-        return record
+
+        if record.attempts >= settings.verification_code_max_attempts:
+            await self.repository.delete(record)
+            return None
+
+        if not secrets.compare_digest(_hash_code(user.id, raw_code), record.token_hash):
+            await self.repository.increment_attempts(record)
+            return None
+
+        return record, user
 
     async def request_password_reset(self, email: str) -> None:
         user = await self._get_user_by_email(email)
@@ -136,15 +158,11 @@ class VerificationService:
             return
         await self._issue_and_send(user, VerificationAction.PASSWORD_RESET)
 
-    async def reset_password(self, raw_token: str, new_password: str) -> bool:
-        record = await self._consume_token(raw_token, VerificationAction.PASSWORD_RESET)
-        if record is None:
+    async def reset_password(self, email: str, raw_code: str, new_password: str) -> bool:
+        result = await self._consume_code(email, raw_code, VerificationAction.PASSWORD_RESET)
+        if result is None:
             return False
-
-        user = await self.session.get(User, record.user_id)
-        if user is None:
-            await self.repository.delete(record)
-            return False
+        record, user = result
 
         user.hashed_password = self.password_helper.hash(new_password)
         await self.repository.delete(record)
@@ -157,15 +175,11 @@ class VerificationService:
             return
         await self._issue_and_send(user, VerificationAction.EMAIL_VERIFY)
 
-    async def verify_email(self, raw_token: str) -> bool:
-        record = await self._consume_token(raw_token, VerificationAction.EMAIL_VERIFY)
-        if record is None:
+    async def verify_email(self, email: str, raw_code: str) -> bool:
+        result = await self._consume_code(email, raw_code, VerificationAction.EMAIL_VERIFY)
+        if result is None:
             return False
-
-        user = await self.session.get(User, record.user_id)
-        if user is None:
-            await self.repository.delete(record)
-            return False
+        record, user = result
 
         user.is_verified = True
         await self.repository.delete(record)
