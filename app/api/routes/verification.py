@@ -10,6 +10,7 @@ from app.schemas.verification import (
     VerifyEmailRequest,
     ResetPassword,
     VerifyEmail,
+    VerifyResetCode,
 )
 from app.services.email import EmailSender, get_email_sender
 from app.services.verification import RateLimitError, VerificationService
@@ -74,6 +75,24 @@ async def forgot_password(
             detail="Too many requests. Please wait before trying again.",
         )
     return _NEUTRAL
+
+
+@router.post(
+    "/verify-reset-code",
+    response_model=MessageResponse,
+    responses=_INVALID_CODE_RESPONSE,
+)
+async def verify_reset_code(
+    payload: VerifyResetCode,
+    service: VerificationService = Depends(get_verification_service),
+):
+    ok = await service.verify_reset_code(payload.email, payload.code)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired code",
+        )
+    return MessageResponse(message="Code is valid.")
 
 
 @router.post(

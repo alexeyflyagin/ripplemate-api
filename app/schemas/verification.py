@@ -7,6 +7,11 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr
 
 
+class VerifyResetCode(BaseModel):
+    email: EmailStr
+    code: str = Field(pattern=CODE_PATTERN)
+
+
 class ResetPassword(BaseModel):
     email: EmailStr
     code: str = Field(pattern=CODE_PATTERN)

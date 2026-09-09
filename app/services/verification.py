@@ -158,6 +158,10 @@ class VerificationService:
             return
         await self._issue_and_send(user, VerificationAction.PASSWORD_RESET)
 
+    async def verify_reset_code(self, email: str, raw_code: str) -> bool:
+        result = await self._consume_code(email, raw_code, VerificationAction.PASSWORD_RESET)
+        return result is not None
+
     async def reset_password(self, email: str, raw_code: str, new_password: str) -> bool:
         result = await self._consume_code(email, raw_code, VerificationAction.PASSWORD_RESET)
         if result is None:
