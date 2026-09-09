@@ -52,9 +52,9 @@ def _email_verify_email(code: str, ttl_minutes: int) -> tuple[str, str, str]:
     subject = "Your email confirmation code"
     text = (
         "Confirm your email address with the code below "
-        f"(valid {ttl_minutes // 60} hours): {code}"
+        f"(valid {ttl_minutes} minutes): {code}"
     )
-    html = render("email_verify.html", code=code, ttl=ttl_minutes // 60)
+    html = render("email_verify.html", code=code, ttl=ttl_minutes)
     return subject, text, html
 
 
