@@ -5,6 +5,7 @@ from app.db.session import get_session
 from app.repositories.verification_token import VerificationTokenRepository
 from app.schemas.verification import (
     ErrorResponse,
+    ResetCodeConfirmed,
     ResetPasswordRequest,
     MessageResponse,
     VerifyEmailRequest,
@@ -79,20 +80,20 @@ async def forgot_password(
 
 @router.post(
     "/verify-reset-code",
-    response_model=MessageResponse,
+    response_model=ResetCodeConfirmed,
     responses=_INVALID_CODE_RESPONSE,
 )
 async def verify_reset_code(
     payload: VerifyResetCode,
     service: VerificationService = Depends(get_verification_service),
 ):
-    ok = await service.verify_reset_code(payload.email, payload.code)
-    if not ok:
+    reset_token = await service.verify_reset_code(payload.email, payload.code)
+    if reset_token is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired code",
         )
-    return MessageResponse(message="Code is valid.")
+    return ResetCodeConfirmed(reset_token=reset_token)
 
 
 @router.post(
@@ -104,11 +105,11 @@ async def reset_password(
     payload: ResetPassword,
     service: VerificationService = Depends(get_verification_service),
 ):
-    ok = await service.reset_password(payload.email, payload.code, payload.password)
+    ok = await service.reset_password(payload.reset_token, payload.password)
     if not ok:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired code",
+            detail="Invalid or expired reset token",
         )
     return MessageResponse(message="Password has been reset.")
 

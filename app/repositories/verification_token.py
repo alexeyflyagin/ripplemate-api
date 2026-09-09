@@ -29,6 +29,15 @@ class VerificationTokenRepository:
         await self.session.refresh(token)
         return token
 
+    async def get_by_hash(self, token_hash: str, action: str) -> VerificationToken | None:
+        result = await self.session.execute(
+            select(VerificationToken).where(
+                VerificationToken.token_hash == token_hash,
+                VerificationToken.action == action,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_latest_for_user(
         self, user_id: uuid.UUID, action: str
     ) -> VerificationToken | None:

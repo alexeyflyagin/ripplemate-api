@@ -169,16 +169,24 @@ async def test_forgot_password_verified_user_sends_mail(client, db_session, mail
     assert mailbox.code_for("ver@example.com") is not None
 
 
+async def _get_reset_token(client, mailbox, email):
+    await client.post("/validation/request-reset-password", json={"email": email})
+    code = mailbox.code_for(email)
+    resp = await client.post(
+        "/validation/verify-reset-code", json={"email": email, "code": code}
+    )
+    return resp.json()["reset_token"]
+
+
 async def test_reset_password_full_flow_allows_login(client, db_session, mailbox):
     await _register(client, "reset@example.com", "oldpassword1")
     await _set_verified(db_session, "reset@example.com", True)
 
-    await client.post("/validation/request-reset-password", json={"email": "reset@example.com"})
-    code = mailbox.code_for("reset@example.com")
+    reset_token = await _get_reset_token(client, mailbox, "reset@example.com")
 
     resp = await client.post(
         "/validation/reset-password",
-        json={"email": "reset@example.com", "code": code, "password": "newpassword1"},
+        json={"reset_token": reset_token, "password": "newpassword1"},
     )
     assert resp.status_code == 200
 
@@ -194,24 +202,27 @@ async def test_reset_password_full_flow_allows_login(client, db_session, mailbox
     assert new.status_code == 200
 
 
-async def test_verify_reset_code_accepts_correct_code_without_consuming_it(client, db_session, mailbox):
+async def test_verify_reset_code_issues_reset_token_and_consumes_the_code(client, db_session, mailbox):
     await _register(client, "peek@example.com", "oldpassword1")
     await _set_verified(db_session, "peek@example.com", True)
 
     await client.post("/validation/request-reset-password", json={"email": "peek@example.com"})
     code = mailbox.code_for("peek@example.com")
 
-    check = await client.post(
+    first = await client.post(
         "/validation/verify-reset-code",
         json={"email": "peek@example.com", "code": code},
     )
-    assert check.status_code == 200
+    assert first.status_code == 200
+    assert isinstance(first.json()["reset_token"], str)
+    assert len(first.json()["reset_token"]) >= 16
 
-    reset = await client.post(
-        "/validation/reset-password",
-        json={"email": "peek@example.com", "code": code, "password": "newpassword1"},
+    # The code is single-use: exchanging it again fails.
+    second = await client.post(
+        "/validation/verify-reset-code",
+        json={"email": "peek@example.com", "code": code},
     )
-    assert reset.status_code == 200
+    assert second.status_code == 400
 
 
 async def test_verify_reset_code_rejects_wrong_code(client, db_session, mailbox):
@@ -249,7 +260,7 @@ async def test_verify_reset_code_rejects_email_verify_code(client, db_session, m
     assert resp.status_code == 400
 
 
-async def test_verify_reset_code_attempts_share_lockout_with_reset_password(client, db_session, mailbox):
+async def test_verify_reset_code_locks_out_after_max_attempts(client, db_session, mailbox):
     await _register(client, "peeklock@example.com", "oldpassword1")
     await _set_verified(db_session, "peeklock@example.com", True)
 
@@ -264,66 +275,45 @@ async def test_verify_reset_code_attempts_share_lockout_with_reset_password(clie
         )
         assert resp.status_code == 400
 
-    # The counter is shared: the correct code is now locked out on both endpoints.
-    check = await client.post(
+    locked_out = await client.post(
         "/validation/verify-reset-code",
         json={"email": "peeklock@example.com", "code": code},
     )
-    assert check.status_code == 400
-
-    reset = await client.post(
-        "/validation/reset-password",
-        json={"email": "peeklock@example.com", "code": code, "password": "newpassword1"},
-    )
-    assert reset.status_code == 400
+    assert locked_out.status_code == 400
 
 
-async def test_reset_password_bad_code_returns_400(client, mailbox):
+async def test_reset_password_rejects_unknown_token(client, mailbox):
     resp = await client.post(
         "/validation/reset-password",
-        json={"email": "nobody@example.com", "code": "12345", "password": "whatever12"},
+        json={"reset_token": "x" * 32, "password": "whatever12"},
     )
     assert resp.status_code == 400
 
 
-async def test_reset_password_rejects_malformed_code(client, mailbox):
+async def test_reset_password_rejects_short_token(client, mailbox):
     resp = await client.post(
         "/validation/reset-password",
-        json={"email": "nobody@example.com", "code": "abc", "password": "whatever12"},
+        json={"reset_token": "tooshort", "password": "whatever12"},
     )
     assert resp.status_code == 422
 
 
-async def test_reset_code_is_single_use(client, db_session, mailbox):
+async def test_reset_token_is_single_use(client, db_session, mailbox):
     await _register(client, "single@example.com", "oldpassword1")
     await _set_verified(db_session, "single@example.com", True)
 
-    await client.post("/validation/request-reset-password", json={"email": "single@example.com"})
-    code = mailbox.code_for("single@example.com")
+    reset_token = await _get_reset_token(client, mailbox, "single@example.com")
 
     first = await client.post(
         "/validation/reset-password",
-        json={"email": "single@example.com", "code": code, "password": "newpassword1"},
+        json={"reset_token": reset_token, "password": "newpassword1"},
     )
     assert first.status_code == 200
     second = await client.post(
         "/validation/reset-password",
-        json={"email": "single@example.com", "code": code, "password": "another12345"},
+        json={"reset_token": reset_token, "password": "another12345"},
     )
     assert second.status_code == 400
-
-
-async def test_verify_code_rejected_on_reset_endpoint(client, db_session, mailbox):
-    await _register(client, "cross@example.com")
-
-    await client.post("/validation/request-verify-email", json={"email": "cross@example.com"})
-    verify_code = mailbox.code_for("cross@example.com")
-
-    resp = await client.post(
-        "/validation/reset-password",
-        json={"email": "cross@example.com", "code": verify_code, "password": "newpassword1"},
-    )
-    assert resp.status_code == 400
 
 
 async def test_second_request_within_cooldown_returns_429(client, db_session, mailbox):

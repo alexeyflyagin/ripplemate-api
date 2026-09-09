@@ -29,6 +29,14 @@ def _hash_code(user_id, code: str) -> str:
     return hashlib.sha256(f"{user_id}:{code}".encode()).hexdigest()
 
 
+def _generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def _password_reset_email(code: str, ttl_minutes: int) -> tuple[str, str, str]:
     subject = "Your password reset code"
     text = (
@@ -55,11 +63,11 @@ def _email_verify_email(code: str, ttl_minutes: int) -> tuple[str, str, str]:
 # ttl is read lazily so an env override of the config value is always picked up.
 _ACTION_CONFIG = {
     VerificationAction.PASSWORD_RESET: {
-        "ttl": lambda: settings.password_reset_token_ttl_minutes,
+        "ttl": lambda: settings.password_reset_code_ttl_minutes,
         "build_email": _password_reset_email,
     },
     VerificationAction.EMAIL_VERIFY: {
-        "ttl": lambda: settings.email_verify_token_ttl_minutes,
+        "ttl": lambda: settings.email_verify_code_ttl_minutes,
         "build_email": _email_verify_email,
     },
 }
@@ -158,15 +166,43 @@ class VerificationService:
             return
         await self._issue_and_send(user, VerificationAction.PASSWORD_RESET)
 
-    async def verify_reset_code(self, email: str, raw_code: str) -> bool:
-        result = await self._consume_code(email, raw_code, VerificationAction.PASSWORD_RESET)
-        return result is not None
-
-    async def reset_password(self, email: str, raw_code: str, new_password: str) -> bool:
+    async def verify_reset_code(self, email: str, raw_code: str) -> str | None:
         result = await self._consume_code(email, raw_code, VerificationAction.PASSWORD_RESET)
         if result is None:
-            return False
+            return None
         record, user = result
+        await self.repository.delete(record)
+
+        token = _generate_reset_token()
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=settings.password_reset_confirmation_ttl_minutes
+        )
+        await self.repository.create(
+            user_id=user.id,
+            token_hash=_hash_reset_token(token),
+            action=VerificationAction.PASSWORD_RESET_CONFIRMED,
+            expires_at=expires_at,
+        )
+        return token
+
+    async def reset_password(self, reset_token: str, new_password: str) -> bool:
+        record = await self.repository.get_by_hash(
+            _hash_reset_token(reset_token), VerificationAction.PASSWORD_RESET_CONFIRMED
+        )
+        if record is None:
+            return False
+
+        expires_at = record.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            await self.repository.delete(record)
+            return False
+
+        user = await self.session.get(User, record.user_id)
+        if user is None:
+            await self.repository.delete(record)
+            return False
 
         user.hashed_password = self.password_helper.hash(new_password)
         await self.repository.delete(record)

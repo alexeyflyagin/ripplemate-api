@@ -9,6 +9,7 @@ from app.db.base import Base
 
 class VerificationAction:
     PASSWORD_RESET = "password_reset"
+    PASSWORD_RESET_CONFIRMED = "password_reset_confirmed"
     EMAIL_VERIFY = "email_verify"
 
 

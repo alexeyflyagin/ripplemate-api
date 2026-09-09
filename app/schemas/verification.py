@@ -12,9 +12,12 @@ class VerifyResetCode(BaseModel):
     code: str = Field(pattern=CODE_PATTERN)
 
 
+class ResetCodeConfirmed(BaseModel):
+    reset_token: str
+
+
 class ResetPassword(BaseModel):
-    email: EmailStr
-    code: str = Field(pattern=CODE_PATTERN)
+    reset_token: str = Field(min_length=16, max_length=128)
     password: str = Field(min_length=8)
 
 

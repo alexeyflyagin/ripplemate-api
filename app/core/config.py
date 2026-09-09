@@ -15,10 +15,11 @@ class Settings(BaseSettings):
     resend_api_key: str
     resend_from_email: str = "onboarding@resend.dev"
     frontend_url: str = "http://localhost:5173"
-    password_reset_token_ttl_minutes: int = 30
-    email_verify_token_ttl_minutes: int = 1440
+    password_reset_code_ttl_minutes: int = 15
+    email_verify_code_ttl_minutes: int = 30
     resend_cooldown_seconds: int = 60
     verification_code_max_attempts: int = 5
+    password_reset_confirmation_ttl_minutes: int = 10
 
     model_config = SettingsConfigDict(env_file=".env.test")
 
