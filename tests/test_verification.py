@@ -141,21 +141,21 @@ async def test_request_verify_already_verified_sends_nothing(client, db_session,
 # --- password reset -----------------------------------------------------
 
 
-async def test_forgot_password_unverified_user_sends_nothing(client, db_session, mailbox):
+async def test_forgot_password_unverified_user_sends_mail(client, db_session, mailbox):
     await _register(client, "unv@example.com")
 
     resp = await client.post(
         "/validation/request-reset-password", json={"email": "unv@example.com"}
     )
     assert resp.status_code == 200
-    assert mailbox.sent == []
+    assert mailbox.code_for("unv@example.com") is not None
 
     result = await db_session.execute(
         select(VerificationToken).where(
             VerificationToken.action == VerificationAction.PASSWORD_RESET
         )
     )
-    assert result.scalars().all() == []
+    assert len(result.scalars().all()) == 1
 
 
 async def test_forgot_password_verified_user_sends_mail(client, db_session, mailbox):

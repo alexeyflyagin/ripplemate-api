@@ -162,7 +162,7 @@ class VerificationService:
 
     async def request_password_reset(self, email: str) -> None:
         user = await self._get_user_by_email(email)
-        if user is None or not user.is_active or not user.is_verified:
+        if user is None or not user.is_active:
             return
         await self._issue_and_send(user, VerificationAction.PASSWORD_RESET)
 
